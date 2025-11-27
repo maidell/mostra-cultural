@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Deu BUG no convite — Mostra Cultural</title>
+  <style>
+    :root{
+      --popup-min-w:600px;
+      --popup-max-w:1200px;
+      --popup-min-h:240px;
+      --popup-max-h:420px;
+    }
+    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    body{display:flex;align-items:center;justify-content:center;background:linear-gradient(120deg,#0f172a,#071430);color:white}
+
+    .stage{max-width:980px;padding:32px;text-align:center}
+    h1{font-size:clamp(40px,8vw,68px);margin:0 0 8px}
+    p.lead{opacity:.9;margin:0 0 20px}
+
+    /* botão desativar */
+    .controls{display:flex;gap:12px;justify-content:center;margin-bottom:18px}
+    button{background:#111827;border:none;color:white;padding:.6rem .9rem;border-radius:10px;cursor:pointer;box-shadow:0 6px 18px rgba(2,6,23,.6)}
+    button.secondary{background:transparent;border:2px solid rgba(255,255,255,.12)}
+
+    /* popups */
+    .popup{
+      position:fixed;
+      display:block;
+      padding:0;
+      background:#ECE9D8; /* fundo bege */
+      
+      box-shadow:4px 4px 0 #000;
+      color:#000;
+      z-index:9999;
+      user-select:none;
+      min-width:360px;
+      max-width:420px;
+      font-family:"MS Sans Serif", Tahoma, sans-serif;
+      animation: pop 0.3s ease-out forwards;
+    }
+    @keyframes pop{
+      0%{transform:scale(.6) translateY(6px);opacity:0}
+      60%{transform:scale(1.06) translateY(-2px);opacity:1}
+      100%{transform:scale(1) translateY(0)}
+    }
+
+    .popup .header{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      background:#0153B4;
+      color:white;
+      border-bottom:2px solid #000;
+    }
+    
+    .popup .title{
+      font-weight:700;
+      font-size:16px;
+      line-height:1.2;
+      margin:0;
+    }
+    
+    .popup .close{
+      background:transparent;
+      border:none;
+      font-weight:700;
+      padding:0;
+      width: 20px;
+      height: 20px;
+      border-radius:3px;
+      cursor:pointer;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .popup .content{
+      padding: 14px;
+      background:#ECE9D8;
+      color:#000;
+    }
+    
+    .popup .presence{
+      
+      color: red;
+      padding: 8px 12px;
+      margin: 10px 0;
+      font-weight: bold;
+      border-radius: 4px;
+      text-align: center;
+    }
+    
+    .popup .description{
+      font-size:14px;
+      line-height:1.4;
+      margin: 12px 0;
+    }
+    
+    .popup .confirm-btn{
+      background: #0153B4;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    /* cores chamativas - gerar via JS também possível */
+    .c1{background:linear-gradient(135deg,#FF3B30,#FF9500);color:white}
+    .c2{background:linear-gradient(135deg,#00C853,#00E676);color:white}
+    .c3{background:linear-gradient(135deg,#5E35B1,#8E24AA);color:white}
+    .c4{background:linear-gradient(135deg,#2979FF,#00B0FF);color:white}
+    .c5{background:linear-gradient(135deg,#FFD600,#FF6D00);color:#120400}
+    .c6{background:linear-gradient(135deg,#00E5FF,#00B8D4);color:#002329}
+
+    /* pequeno aviso acessível */
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+    footer{opacity:.8;margin-top:18px;font-size:13px}
+
+    @media (max-width:520px){
+      .popup{padding:10px 12px;border-radius:10px}
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <h1>Deu BUG no convite</h1>
+    <p class="lead">Mostra Cultural — Colégio Estadual Emílio de Menezes — <strong>29/11</strong></p>
+    <div class="controls">
+      <button id="stopBtn">Desativar popups</button>
+      <button id="spawnBtn" class="secondary">Gerar mais popups</button>
+    </div>
+    <footer>Venha prestigiar o trabalho dos nossos estudantes!</footer>
+  </div>
+
+  <span class="sr-only" id="aria-status" aria-live="polite"></span>
+
+  <script>
+  // ROTEIRO: "Deu BUG no convite" — cria vários popups chamativos em posições aleatórias ao carregar.
+
+  (function(){
+    const schoolTitle = 'Mostra Cultural — Colégio Estadual Emílio de Menezes';
+    const dateText = '29/11';
+    const subtitle = 'Venha prestigiar o trabalho dos nossos estudantes';
+
+    const COLORS = ['c1','c2','c3','c4','c5','c6'];
+    let enabled = true;
+
+    function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min }
+
+    function makePopup(index){
+      const w = rand(320, 420);
+      const h = rand(220, 280);
+      const popup = document.createElement('div');
+      popup.className = 'popup';
+
+      // calcula posição aleatória dentro da janela (com folga)
+      const margin = 12;
+      const maxLeft = Math.max(0, window.innerWidth - w - margin);
+      const maxTop = Math.max(0, window.innerHeight - h - margin);
+      const left = rand(margin, Math.max(margin, maxLeft));
+      const top = rand(margin, Math.max(margin, maxTop));
+
+      popup.style.width = w + 'px';
+      popup.style.height = 'auto';
+      popup.style.left = left + 'px';
+      popup.style.top = top + 'px';
+
+      // cabeçalho
+      const header = document.createElement('div');
+      header.className = 'header';
+      
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.innerHTML = `MOSTRA CULTURAL — ${dateText}`;
+      
+      const close = document.createElement('button');
+      close.className = 'close';
+      close.setAttribute('aria-label','Fechar popup');
+      close.innerText = '✕';
+      close.onclick = () => {
+        popup.remove();
+      };
+      
+      header.appendChild(title);
+      header.appendChild(close);
+      
+      // conteúdo
+      const content = document.createElement('div');
+      content.className = 'content';
+      
+      const presence = document.createElement('div');
+      presence.className = 'presence';
+      presence.innerText = 'PRESENÇA OBRIGATÓRIA';
+      
+      const description = document.createElement('div');
+      description.className = 'description';
+      description.innerHTML = `MOSTRA CULTURAL NO COLÉGIO EMILIO DE MENEZES<br>A PARTIR DAS 10H<br>NESTE SÁBADO 29/11 A PARTIR DAS 10H`;
+      
+      const confirmBtn = document.createElement('button');
+      confirmBtn.className = 'confirm-btn';
+      confirmBtn.innerText = 'ESTAREI PRESENTE';
+      confirmBtn.onclick = () => {
+        alert('Presença confirmada para a Mostra Cultural!');
+        popup.remove();
+      };
+      
+      content.appendChild(presence);
+      content.appendChild(description);
+      content.appendChild(confirmBtn);
+      
+      popup.appendChild(header);
+      popup.appendChild(content);
+
+      // leve rotação e z-index randômico pra bagunçar
+      popup.style.transform = `rotate(${rand(-3, 3)}deg)`;
+      popup.style.zIndex = 9000 + rand(1,999);
+
+      document.body.appendChild(popup);
+
+      // auto-remover depois de um tempo (para não travar a tela)
+      const ttl = rand(6000,20000);
+      setTimeout(()=>{ if(popup.parentElement) popup.remove() }, ttl);
+
+      return popup;
+    }
+
+    function spawnMany(count){
+      const existing = document.querySelectorAll('.popup').length;
+      const toSpawn = Math.max(0,count);
+      for(let i=0;i<toSpawn;i++){
+        // espaçar levemente a criação para animação ficar legal
+        setTimeout(()=>{
+          if(enabled) makePopup(existing + i);
+        }, i*80);
+      }
+      // atualizar leitor de tela
+      const aria = document.getElementById('aria-status');
+      if(aria) aria.textContent = `${toSpawn} notificações na tela.`;
+    }
+
+    // evento para gerar popups ao carregar
+    document.addEventListener('DOMContentLoaded',()=>{
+      // gerar entre 8 e 18 popups ao carregar
+      const initial = rand(8,18);
+      spawnMany(initial);
+      // iniciar geração infinita
+      setInterval(()=>{ if(enabled) spawnMany(rand(1,3)); }, 500);
+
+      // small playful repeat: gerar mais alguns depois de 1.2s
+      setTimeout(()=>{
+        if(enabled) spawnMany(rand(3,7));
+      },1200);
+
+    });
+
+    // controles
+    document.getElementById('stopBtn').addEventListener('click',()=>{
+      enabled = false;
+      // remove todos por segurança
+      document.querySelectorAll('.popup').forEach(p=>p.remove());
+      document.getElementById('aria-status').textContent = 'Popups desativados.';
+    });
+    document.getElementById('spawnBtn').addEventListener('click',()=>{
+      if(!enabled) return;
+      spawnMany(rand(4,12));
+    });
+
+    // evitar que popups fiquem parcialmente fora da tela quando redimensiona
+    window.addEventListener('resize',()=>{
+      document.querySelectorAll('.popup').forEach(p=>{
+        const rect = p.getBoundingClientRect();
+        let left = rect.left, top = rect.top;
+        const margin = 8;
+        const maxLeft = Math.max(margin, window.innerWidth - rect.width - margin);
+        const maxTop = Math.max(margin, window.innerHeight - rect.height - margin);
+        if(left > maxLeft) p.style.left = maxLeft + 'px';
+        if(top > maxTop) p.style.top = maxTop + 'px';
+      });
+    });
+
+  })();
+  </script>
+</body>
+</html>
